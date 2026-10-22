@@ -1,0 +1,111 @@
+/* 语音输入标签页（本地 ASR）。
+   只使用主界面的设计令牌（--surface/--paper/--line/--text/--sub/--accent），
+   因此浅色与 .dark 深色主题都自动适配。 */
+
+.asr-view{
+  --font-ja:"Yu Gothic UI","Meiryo","Yu Gothic","Hiragino Kaku Gothic ProN","Noto Sans JP","Microsoft YaHei",sans-serif;
+  --font-zh:"Microsoft YaHei","PingFang SC","Noto Sans SC","Segoe UI",sans-serif;
+  overflow-y:auto;
+  padding:22px 30px;
+}
+.asr-scroll{display:flex;flex-direction:column;gap:14px;max-width:900px;width:100%;flex:none}
+
+.asr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.asr-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.asr-head-actions .button-small{min-height:28px;padding:5px 10px;font-size:11px}
+.asr-lead{margin:0;font-size:12px;line-height:1.65;color:var(--sub);max-width:640px}
+#asrStatus{flex:none;font-size:11px;padding:6px 11px;border-radius:999px;background:var(--paper2);color:var(--sub);border:1px solid var(--line);white-space:nowrap;overflow-wrap:anywhere;cursor:pointer}
+#asrStatus.ok{background:var(--soft);color:var(--accent);border-color:transparent}
+#asrStatus.bad{background:#fdeced;color:var(--danger);border-color:transparent}
+#asrStatus.warn{background:#fff5e6;color:#a4661a;border-color:transparent}
+.dark #asrStatus.bad{background:#3a2026;color:#ffb3ba}
+.dark #asrStatus.warn{background:#3a2f1a;color:#f0c98a}
+
+.asr-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+
+.asr-controls{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.asr-field{display:flex;flex-direction:column;gap:6px;min-width:200px;flex:1 1 220px}
+.asr-field span{font-size:10px;font-weight:750;letter-spacing:.6px;color:var(--sub);text-transform:uppercase}
+.asr-field select{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--text);padding:0 9px;font-size:12px}
+.asr-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.asr-buttons .button{flex:0 0 auto;min-width:88px}
+
+.asr-meter{height:7px;border-radius:8px;background:var(--paper2);overflow:hidden;margin-top:13px;border:1px solid var(--line)}
+.asr-meter>div{height:100%;width:0;background:var(--accent);transition:width .08s linear}
+
+.asr-hint{margin:9px 0 0;font-size:11px;line-height:1.6;color:var(--sub)}
+
+.asr-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.asr-editor-head label{font-size:11px;font-weight:750;letter-spacing:.5px;color:var(--sub);text-transform:uppercase}
+#asrCount{font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums}
+#asrCount.over{color:var(--danger);font-weight:750}
+
+.asr-blocks{
+  min-height:172px;background:var(--paper);border:1px solid var(--line);border-radius:12px;
+  padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;
+}
+.asr-placeholder{margin:0;font-size:12px;line-height:1.75;color:var(--sub)}
+.asr-block{
+  display:inline-block;padding:6px 10px;border-radius:9px;
+  background:var(--surface);border:1px solid var(--line);color:var(--text);
+  font-size:17px;line-height:1.35;letter-spacing:.01em;
+  cursor:pointer;user-select:none;white-space:pre-wrap;
+  transition:background .12s,border-color .12s,box-shadow .12s,transform .08s;
+}
+/* 日文方块必须用日文字体，否则日文汉字会按中文字形渲染 */
+.asr-block:lang(ja){font-family:var(--font-ja);line-break:strict;word-break:normal;overflow-wrap:anywhere;font-feature-settings:"palt" 1;letter-spacing:0}
+.asr-block:lang(zh){font-family:var(--font-zh);line-break:normal;word-break:normal;overflow-wrap:anywhere}
+.asr-block:hover{background:var(--paper2);border-color:var(--accent)}
+.asr-block:active{transform:scale(.97)}
+.asr-block.sel{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 2px rgba(0,143,122,.26)}
+.asr-block.sel:hover{background:var(--accent-hi);border-color:var(--accent-hi)}
+.asr-block.target{opacity:.5;border-style:dashed;text-decoration:line-through;text-decoration-thickness:1px}
+.asr-block.pending{background:transparent;border:1px dashed var(--accent);color:var(--sub);font-style:italic;cursor:default;animation:asrPendingPulse 1.4s ease-in-out infinite}
+.asr-block.pending:hover{background:transparent;border-color:var(--accent)}
+.asr-block.fresh{animation:asrFreshIn .9s ease-out}
+@keyframes asrPendingPulse{0%,100%{opacity:.62}50%{opacity:1}}
+@keyframes asrFreshIn{0%{background:var(--soft);border-color:var(--accent)}100%{}}
+
+.asr-selection{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-top:10px;padding:8px 12px;border-radius:10px;
+  background:var(--soft);border:1px solid var(--accent);color:var(--text);font-size:11px;line-height:1.5;
+}
+
+/* 操作栏：右侧「发送」跨 2 行，其余 4 键均分 2×2 */
+.asr-actions{
+  display:grid;gap:8px;margin-top:11px;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(88px,26%);
+  grid-template-rows:repeat(2,minmax(42px,auto));
+}
+.asr-actions .button{flex:none;width:100%;min-height:42px}
+#asrUndo{grid-area:1/1/2/2}
+#asrDelSel{grid-area:1/2/2/3}
+#asrClear{grid-area:2/1/3/2}
+#asrSave{grid-area:2/2/3/3}
+.asr-send{
+  grid-area:1/3/3/4;
+  font-size:14px;font-weight:800;letter-spacing:.4px;
+  flex-direction:column;gap:2px;
+}
+
+.asr-settings{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 16px}
+.asr-settings summary{cursor:pointer;font-size:12px;font-weight:750;color:var(--text)}
+.asr-settings label{display:block;font-size:11px;font-weight:700;color:var(--sub);margin:12px 0 6px}
+.asr-settings select{width:100%;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--text);padding:0 9px;font-size:12px}
+
+@media(max-width:880px){
+  .asr-view{padding:18px 18px}
+}
+@media(max-width:680px){
+  .asr-view{padding:14px 13px calc(14px + env(safe-area-inset-bottom,0px))}
+  .asr-card{padding:12px 12px;border-radius:12px}
+  .asr-controls{gap:10px}
+  .asr-field{flex:1 1 100%}
+  .asr-buttons .button{flex:1 1 0;min-width:0}
+  .asr-block{font-size:16px}
+  .asr-actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(74px,24%)}
+  .asr-actions .button{min-height:40px;padding:8px 6px;font-size:11px}
+  .asr-send{font-size:12px}
+  .asr-lead{font-size:11px}
+}

@@ -41,12 +41,24 @@ def delete_file(filename):
             except: pass
 
 app = Flask(__name__)
+# 模板改动后立即生效：否则改完 index.html 仍会继续渲染进程里缓存的旧版本，
+# 与 static 下的新脚本版本错配（例如脚本绑定了模板里还不存在的按钮）。
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.jinja_env.auto_reload = True
 from frontend_store import frontend_store
 app.register_blueprint(frontend_store)
 from translation import translation
 from startup import system_language, serve
 app.register_blueprint(translation)
 config = load_config()
+
+# 本地语音识别（可选功能）：sherpa-onnx 或模型缺失时只影响「语音输入」标签页，
+# 不影响发送、历史与短语。注册失败时打印原因并继续启动。
+try:
+    from asr import asr_api
+    app.register_blueprint(asr_api)
+except Exception as _asr_exc:  # pragma: no cover - depends on install
+    print(f"[asr] 语音输入不可用：{type(_asr_exc).__name__}: {_asr_exc}")
 
 # === OSC 客户端初始化与重连逻辑 ===
 def init_osc(ip, port):

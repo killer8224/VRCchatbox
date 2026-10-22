@@ -7,6 +7,7 @@
   <meta name="description" content="VRChat OSC Chatbox：手机输入、原文发送、浏览器端翻译与电脑端共享历史。">
   <title>VRC Chatbox · Web Edition</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='asr.css') }}">
 </head>
 <body>
   <script id="server-config" type="application/json">{{ config | tojson }}</script>
@@ -18,6 +19,7 @@
         <button class="nav-item active" data-view="chat"><span class="nav-icon">◉</span>消息发送</button>
         <button class="nav-item" data-view="history"><span class="nav-icon">◷</span>发送记录 <em id="historyCount">0</em></button>
         <button class="nav-item" data-view="quick"><span class="nav-icon">✦</span>快捷短语</button>
+        <button class="nav-item" data-view="asr"><span class="nav-icon">◎</span>语音输入</button>
       </nav>
       <div class="sidebar-bottom">
         <div class="bridge-info"><span class="live-dot"></span><div><strong>VRChat · OSC</strong><small>HTTP 5000 · OSC 9000（默认）</small></div></div>
@@ -38,6 +40,7 @@
         <button class="mobile-item active" data-view="chat">◉ <span>聊天</span></button>
         <button class="mobile-item" data-view="history">◷ <span>历史</span></button>
         <button class="mobile-item" data-view="quick">✦ <span>短语</span></button>
+        <button class="mobile-item" data-view="asr">◎ <span>语音</span></button>
       </nav>
 
       <section class="view chat-view active" id="view-chat" aria-label="聊天输入">
@@ -74,6 +77,80 @@
         <div class="library-heading"><div><h2>常用短语</h2><p>保存在电脑上，所有连接设备共享；直接发送不调用翻译 API。</p></div><span class="pill">最多 100 条</span></div>
         <div class="quick-add"><textarea id="quickEditor" rows="2" placeholder="例如：请稍等一下，我正在打字……"></textarea><div class="tool-row"><button class="button button-outline button-small" id="cancelQuick" hidden>取消编辑</button><button class="button button-accent button-small" id="saveQuick">新增短语</button></div></div>
         <div id="quickList" class="record-list"></div>
+      </section>
+
+      <section class="view asr-view" id="view-asr" aria-label="语音输入" hidden>
+        <div class="asr-scroll">
+          <div class="asr-head">
+            <p class="asr-lead">本机识别，音频不上传云端。结果按短语切成方块，点选后可删除或重新说一遍整体替换；确认无误再点右侧「发送」交给 OSC。</p>
+            <div class="asr-head-actions">
+              <span id="asrStatus" class="pill">正在检查模型…</span>
+              <button id="asrPopout" class="button button-outline button-small" type="button" hidden>在新窗口打开</button>
+            </div>
+          </div>
+
+          <section class="asr-card">
+            <div class="asr-controls">
+              <label class="asr-field" for="asrDevice"><span>麦克风设备</span>
+                <select id="asrDevice"><option value="">系统默认麦克风</option></select>
+              </label>
+              <div class="asr-buttons">
+                <button id="asrStart" class="button button-accent" type="button">开始监听</button>
+                <button id="asrStop" class="button button-outline" type="button" disabled>停止</button>
+                <button id="asrCopy" class="button button-outline" type="button">复制草稿</button>
+              </div>
+            </div>
+            <div class="asr-meter"><div id="asrMeterFill"></div></div>
+            <p id="asrMicStatus" class="asr-hint">点击「开始监听」后选择麦克风，并允许浏览器访问。手机通过局域网地址访问时浏览器会禁止录音，请在本机用 127.0.0.1 打开。</p>
+          </section>
+
+          <section class="asr-card">
+            <div class="asr-editor-head">
+              <label>识别结果 · 点击方块编辑</label>
+              <span id="asrCount">0 / 144</span>
+            </div>
+            <div id="asrBlocks" class="asr-blocks" role="listbox" aria-multiselectable="true">
+              <p id="asrPlaceholder" class="asr-placeholder">识别结果会在这里逐块出现。点一下方块选中，再点一次取消；点相邻方块可连续扩选；选中后直接重新说一遍，完整识别后会整体替换。</p>
+            </div>
+            <div id="asrSelectionBar" class="asr-selection" hidden>
+              <span id="asrSelectionText"></span>
+              <button id="asrClearSel" class="button button-outline button-small" type="button">取消选择</button>
+            </div>
+            <div class="asr-actions">
+              <button id="asrUndo" class="button button-outline" type="button">撤销</button>
+              <button id="asrDelSel" class="button button-outline" type="button" disabled>删除选中</button>
+              <button id="asrSend" class="button button-accent asr-send" type="button">↗ 发送</button>
+              <button id="asrClear" class="button button-outline" type="button">清空</button>
+              <button id="asrSave" class="button button-outline" type="button">保存</button>
+            </div>
+            <p id="asrNotice" class="asr-hint">选中方块后重新说一遍即可整体替换；替换完成后自动回到普通追加输入状态。</p>
+          </section>
+
+          <details class="asr-settings">
+            <summary>性能与识别设置</summary>
+            <p id="asrModelInfo" class="asr-hint">读取中…</p>
+            <label for="asrLang">识别语种（留「自动」即可：说什么识别成什么）</label>
+            <select id="asrLang">
+              <option value="" selected>自动 · 跟随说话语种（推荐）</option>
+              <option value="Japanese">日语 Japanese</option>
+              <option value="Chinese">中文 Chinese</option>
+              <option value="English">英语 English</option>
+              <option value="Korean">韩语 Korean</option>
+            </select>
+            <label for="asrChunkMs">采集块长度（毫秒）</label>
+            <select id="asrChunkMs">
+              <option value="600">600 ms（响应更快，计算更频繁）</option>
+              <option value="900" selected>900 ms（推荐起点）</option>
+              <option value="1200">1200 ms（调用更少）</option>
+            </select>
+            <label for="asrPauseMs">停顿判定（毫秒）</label>
+            <select id="asrPauseMs">
+              <option value="600">600 ms</option>
+              <option value="850" selected>850 ms</option>
+              <option value="1200">1200 ms</option>
+            </select>
+          </details>
+        </div>
       </section>
 
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -127,5 +204,7 @@
   </div>
   <script src="{{ url_for('static', filename='i18n.js') }}" defer></script>
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='phrase.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='asr.js') }}" defer></script>
 </body>
 </html>

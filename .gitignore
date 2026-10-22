@@ -16,6 +16,9 @@ dist/
 config/
 HTML osc chat/config/
 
+# Local speech-to-text models (942 MB, downloaded separately)
+models/
+
 # Local credentials and editor/OS files
 .env
 .env.*

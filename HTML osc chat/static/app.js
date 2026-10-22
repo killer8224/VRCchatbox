@@ -91,7 +91,8 @@
   const titles = {
     chat: ['消息发送','跨设备文字交流'],
     history: ['发送记录','保存在电脑上的共享历史'],
-    quick: ['快捷短语','电脑端共享的常用文字']
+    quick: ['快捷短语','电脑端共享的常用文字'],
+    asr: ['语音输入','本机识别 · 方块编辑草稿']
   };
   const htmlEsc = text => String(text).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   function showToast(message, error = false) {
@@ -161,8 +162,9 @@
     }
   }
   function switchView(view) {
+    const previous = currentView;
     currentView = view;
-    for (const target of ['chat','history','quick']) {
+    for (const target of ['chat','history','quick','asr']) {
       const visible = target === view;
       $('view-' + target).classList.toggle('active', visible);
       $('view-' + target).hidden = !visible;
@@ -176,6 +178,10 @@
     $('viewSubtitle').textContent = t(titles[view][1]);
     if (view === 'history') renderHistory();
     if (view === 'quick') renderQuick();
+    // Leaving the ASR tab must release the microphone; the panel also stops
+    // itself on pagehide so the browser recording indicator never lingers.
+    if (previous === 'asr' && view !== 'asr' && window.VRCASR) window.VRCASR.suspend();
+    if (view === 'asr' && window.VRCASR) window.VRCASR.resume();
     if (view !== 'chat') refreshPcData();
   }
   function count(str) {
@@ -396,6 +402,28 @@
       showToast((clearing?t('清除气泡失败：'):t('发送失败：'))+e.message+t('；文本已保留，可重试。'),true);
     } finally {setBusy(false);}
   }
+  /* ------------------------------------------------------------------ *
+   * 语音输入标签页的桥接：复用同一套 OSC 发送、历史记录与常用短语逻辑，
+   * 避免在 asr.js 里重复实现 144 字符 / 9 行的拆分规则。
+   * ------------------------------------------------------------------ */
+  async function sendFromDraft(text) {
+    // chunkMessage throws when the text is too long and has no safe boundary.
+    const plan = chunkMessage(text);
+    if (!plan.send) return { sent: '', remaining: plan.remaining, split: false };
+    await submitOriginalForm({ message: plan.send, typing: '0' });
+    try {
+      await addHistory(plan.send, plan.send, '');
+    } catch (e) {
+      showToast(t('OSC 已提交，但历史记录保存失败：') + e.message, true);
+    }
+    stopTyping(true); // The message POST already submitted typing=0.
+    return { sent: plan.send, remaining: plan.remaining, split: plan.split };
+  }
+  async function saveQuickPhrase(text) {
+    const item = { id: Date.now() + '-' + Math.random().toString(36).slice(2, 9), text };
+    await queueAction('quick/upsert', { item });
+    return item;
+  }
   function uint8Length(text) {return new TextEncoder().encode(text).length;}
   function createFinalText(source, translation) {
     const format=$('sendFormat').value;
@@ -541,6 +569,11 @@
     $('originalSettingsForm').addEventListener('submit',saveServerSettings);
     window.addEventListener('pagehide',pageHideTyping);
     updateCount();connection(t('网页已就绪'));
+    // Public bridge for the optional speech-to-text tab (static/asr.js).
+    window.VRCApp = {
+      sendFromDraft, saveQuickPhrase, showToast, switchView,
+      t, upstream, maxChars: CHAT_MAX_CHARS, maxLines: CHAT_MAX_LINES
+    };
   }
   boot();
 })();
