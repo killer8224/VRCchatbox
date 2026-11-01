@@ -9,6 +9,7 @@
 .asr-view{
   --font-ja:"Yu Gothic UI","Meiryo","Yu Gothic","Hiragino Kaku Gothic ProN","Noto Sans JP","Microsoft YaHei",sans-serif;
   --font-zh:"Microsoft YaHei","PingFang SC","Noto Sans SC","Segoe UI",sans-serif;
+  --font-en:"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;
   display:flex;
   flex-direction:column;
   overflow:hidden;
@@ -93,6 +94,8 @@
 /* 日文方块必须用日文字体，否则日文汉字会按中文字形渲染 */
 .asr-block:lang(ja){font-family:var(--font-ja);line-break:strict;word-break:normal;overflow-wrap:anywhere;font-feature-settings:"palt" 1;letter-spacing:0}
 .asr-block:lang(zh){font-family:var(--font-zh);line-break:normal;word-break:normal;overflow-wrap:anywhere}
+/* 英文方块用拉丁字体，单词只在空格处换行，不拆词 */
+.asr-block:lang(en){font-family:var(--font-en);line-break:normal;word-break:normal;overflow-wrap:break-word;hyphens:none}
 .asr-block:hover{background:var(--paper2);border-color:var(--accent)}
 .asr-block:active{transform:scale(.97)}
 .asr-block.sel{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 2px rgba(0,143,122,.26)}

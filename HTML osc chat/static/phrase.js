@@ -3,9 +3,10 @@
  * 不变量：splitPhrases(text).join("") === text
  * 即每个字都属于且只属于一个方块，既不重合也不遗漏。
  *
- * 分语言规则：含假名（ひらがな/カタカナ）时用日语规则，否则用中文规则。
- * 中文规则与旧版完全一致；日语规则补上了“、”断点、日语助词/接续词，
- * 并放宽了单块长度（日语同样信息量需要更多字）。
+ * 分语言规则：含假名（ひらがな/カタカナ）时用日语规则；整段没有汉字/假名但有
+ * 拉丁字母时用英语规则；其余用中文规则。中文规则与旧版完全一致；日语规则补上了
+ * “、”断点、日语助词/接续词，并放宽了单块长度（日语同样信息量需要更多字）。
+ * 英语规则按空格分词，块边界只落在词与词之间——绝不把单词切成两半。
  */
 (function (root, factory) {
   "use strict";
@@ -19,8 +20,6 @@
   const STRONG_CHARS = "。！？!?…";
   const CLOSER = new Set("”’」』）)】》〉\"'".split(""));
   const SOFT_SUFFIX = new Set(["～", "~", "ー"]);
-
-  const KANA = /[\u3040-\u30ff]/;
 
   // 这些字后面常是短语的自然边界
   const ZH_SOFT_AFTER = "的了着过吗呢吧啊呀哦嘛么啦呗".split("");
@@ -54,6 +53,20 @@
     "ありがとう", "すみません", "お願い"
   ];
 
+  // 英语靠空格分词，块边界只能落在词与词之间，绝不能切在单词内部。
+  // 这些词前面常是分句的自然边界（块已经接近上限时优先在这里断开）。
+  const EN_SOFT_WORDS = new Set([
+    "and", "but", "so", "because", "then", "however", "actually", "anyway",
+    "maybe", "also", "if", "when", "while", "after", "before", "though",
+    "although", "since", "or", "yet", "plus", "else", "otherwise", "besides"
+  ]);
+  // 这些缩写后面的句点不是句末，不能在这里断块
+  const EN_ABBREV = new Set([
+    "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "etc", "no", "fig", "approx", "e.g", "i.e"
+  ]);
+  // 英文的弱标点（断块时可以断，但只在块已经够长时）
+  const EN_WEAK_TAIL = /[,;:，；：]$/;
+
   function makeProfile(key, maxLen, minLen, weakMin, weakChars, softAfterChars, softWords, noCut) {
     const byFirst = new Map();
     for (const w of softWords) {
@@ -80,10 +93,20 @@
     zh: makeProfile("zh", 8, 3, 4, "，；：,;:", ZH_SOFT_AFTER, ZH_SOFT_WORDS),
     // 日语：“、”就是逗号，必须参与断句；单块放宽到 11 字
     ja: makeProfile("ja", 11, 4, 5, "、，；：,;:", JA_SOFT_AFTER, JA_SOFT_WORDS, JA_NO_CUT),
+    // 英语：maxLen / minLen 直接按字符算，切分走 splitEnWords（按词断，不切单词）
+    en: makeProfile("en", 26, 3, 6, ",;:", "", [], []),
   };
+  PROFILES.en.wordAware = true;
+
+  const KANA = /[\u3040-\u30ff]/;
+  const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+  const LATIN = /[A-Za-z]/;
 
   function detectProfile(src) {
-    return KANA.test(src) ? PROFILES.ja : PROFILES.zh;
+    if (KANA.test(src)) return PROFILES.ja;
+    // 完全没有汉字/假名、但有拉丁字母：按英语处理（中文里夹英文词仍走中文规则）
+    if (!CJK.test(src) && LATIN.test(src)) return PROFILES.en;
+    return PROFILES.zh;
   }
 
   function softWordAt(prof, s, i) {
@@ -152,12 +175,21 @@
     // 3) 兜底：按上限切，但不能切开英文单词/数字，也不要把虚词甩到下一块开头
     let c = maxEnd;
     while (c > minEnd && isAsciiWord(s[c - 1]) && isAsciiWord(s[c] || "")) c--;
+    if (c <= minEnd && isAsciiWord(s[c - 1]) && isAsciiWord(s[c] || "")) {
+      // 整个 [minEnd, maxEnd] 窗口都落在同一个英文单词内部（interesting / supermarket …）：
+      // 向后找到词尾再切，宁可这一块略超上限，也不能把单词劈成两半。
+      let f = maxEnd;
+      while (f < n && isAsciiWord(s[f - 1]) && isAsciiWord(s[f] || "")) f++;
+      c = f;
+    }
     while (c > minEnd && isBadHead(s[c])) c--;
     while (c > minEnd && isKatakana(s[c - 1]) && isKatakana(s[c] || "")) c--;
     while (c > minEnd && isForbiddenCut(prof, s, c)) c--;
     let shift = 0;
     while (shift < 2 && c + shift < n && prof.softAfter.has(s[c + shift])) shift++;
     c += shift;
+    // 空格归前一块，避免出现以空格开头的方块
+    while (c < n && /\s/.test(s[c])) c++;
     if (n - c < minLen) return n;
     return c;
   }
@@ -175,12 +207,12 @@
     return pieces;
   }
 
-  // 句首标点向前归并，避免出现以“，”开头的方块
+  // 句首标点/空格向前归并，避免出现以“，”或空格开头的方块
   function rebalanceLeadingPunct(prof, pieces) {
     for (let i = 1; i < pieces.length; i++) {
       let lead = "";
       let j = 0;
-      while (j < pieces[i].length && prof.trailing.has(pieces[i][j])) {
+      while (j < pieces[i].length && (prof.trailing.has(pieces[i][j]) || /\s/.test(pieces[i][j]))) {
         lead += pieces[i][j];
         j++;
       }
@@ -208,6 +240,93 @@
     return out;
   }
 
+  // 英语：块边界只能落在词与词之间。先按「词 + 后续空白」切成单元，
+  // 再按 maxLen（字符数）贪心拼块，拼接结果与原文完全一致。
+  function isEnSentenceEnd(word) {
+    const m = /[.!?…。！？]$/.exec(word);
+    if (!m) return false;
+    if (m[0] !== ".") return true;
+    const bare = word.slice(0, -1);
+    if (!bare) return false;
+    if (/\d$/.test(bare)) return false;                    // 3. / 1.
+    if (EN_ABBREV.has(bare.toLowerCase())) return false;   // Mr. / etc. / e.g.
+    if (/^[A-Z]$/.test(bare)) return false;                // J. Smith
+    return true;
+  }
+
+  function lastWordOf(piece) {
+    const core = piece.replace(/\s+$/, "");
+    return core.slice(core.lastIndexOf(" ") + 1);
+  }
+
+  function splitEnWords(text, maxLen, minLen) {
+    const units = [];
+    for (const raw of text.match(/\s*\S+\s*/g) || [text]) {
+      const m = /^(\s*)(\S+)(\s*)$/.exec(raw);
+      if (!m) { units.push(raw); continue; }
+      const lead = m[1], core = m[2], tail = m[3];
+      if (core.length <= maxLen) { units.push(raw); continue; }
+      // 单个单词本身就超过上限（罕见）：只能硬切，否则永远装不下
+      let rest = core, first = true;
+      while (rest.length > maxLen) {
+        units.push((first ? lead : "") + rest.slice(0, maxLen));
+        rest = rest.slice(maxLen);
+        first = false;
+      }
+      units.push((first ? lead : "") + rest + tail);
+    }
+
+    const softAt = Math.max(minLen, Math.ceil(maxLen * 0.6));
+    const out = [];
+    let cur = "";
+    for (const u of units) {
+      const core = u.trim();
+      if (!cur) { cur = u; continue; }
+      const prevCore = cur.replace(/\s+$/, "");
+      const fits = (cur + core).replace(/\s+$/, "").length <= maxLen;
+      const softNext = EN_SOFT_WORDS.has(core.toLowerCase().replace(/[^a-z']/g, ""));
+      const nearLimit = prevCore.length >= softAt;
+      if (
+        isEnSentenceEnd(lastWordOf(cur)) ||        // 上一块已到句末
+        !fits ||                                   // 装不下了
+        (nearLimit && (EN_WEAK_TAIL.test(prevCore) || softNext))  // 接近上限且正好有自然边界
+      ) {
+        out.push(cur);
+        cur = u;
+      } else {
+        cur += u;
+      }
+    }
+    if (cur) out.push(cur);
+
+    // 末尾过短的碎片并入前一块，但不跨句末标点
+    if (out.length > 1) {
+      const last = out[out.length - 1];
+      const prev = out[out.length - 2];
+      if (last.trim().length < minLen && !isEnSentenceEnd(lastWordOf(prev))) {
+        out.splice(out.length - 2, 2, prev + last);
+      }
+    }
+
+    // 末块明显偏短时从前一块借词，避免出现「like」这种孤立方块
+    const floor = Math.ceil(maxLen * 0.4);
+    for (let guard = 0; guard < 8 && out.length > 1; guard++) {
+      const last = out[out.length - 1];
+      const prev = out[out.length - 2];
+      if (last.trim().length >= floor) break;
+      // 只在空白规整时借词：重排会重新拼接空格，换行/制表符不能被动到
+      if (/[\n\t\r]|  /.test(prev)) break;
+      const words = prev.replace(/\s+$/, "").split(/\s+/);
+      if (words.length <= 2) break;
+      const give = words.pop() + " ";
+      const nextLast = give + last;
+      if (nextLast.replace(/\s+$/, "").length > maxLen) break;
+      out[out.length - 2] = words.join(" ") + " ";
+      out[out.length - 1] = nextLast;
+    }
+    return out;
+  }
+
   function splitPhrases(text, opts) {
     const src = String(text == null ? "" : text);
     if (!src) return [];
@@ -216,6 +335,8 @@
     const maxLen = (opts && opts.maxLen) || prof.maxLen;
     const minLen = (opts && opts.minLen) || prof.minLen;
     const weakMin = (opts && opts.weakMin) || prof.weakMin;
+
+    if (prof.wordAware) return splitEnWords(src, maxLen, minLen);
 
     // 第一轮：按标点切分，标点跟着前一个方块
     const chunks = [];
