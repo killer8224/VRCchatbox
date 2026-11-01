@@ -1,7 +1,12 @@
-VRC Chatbox 1.4
+VRC Chatbox 1.5
 
 Windows 发布版无需安装 Python。解压完整目录后运行 VRCChatbox.exe，
 保持 _internal 文件夹和 EXE 在同一目录。根据控制台显示的地址手动打开网页。
+
+「语音输入」标签页需要 models/llama-qwen3-asr/ 目录，内含 llama.cpp 的
+Vulkan 版运行时（llama-server.exe 及同目录 DLL）和 Qwen3-ASR-0.6B 的 GGUF
+模型与音频编码器。该目录缺失时只有语音识别不可用，发送、历史与短语不受影响。
+语音识别走显卡（Vulkan），不再占用 CPU，也不影响串流。
 
 详细说明 / Documentation / ドキュメント / 문서:
 - README.md       简体中文

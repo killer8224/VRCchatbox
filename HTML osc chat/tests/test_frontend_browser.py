@@ -21,8 +21,9 @@ def build_html():
                 '<style>'+css+'</style>')
     s=s.replace('<script src="{{ url_for(\'static\', filename=\'app.js\') }}" defer></script>','')
     s=s.replace('<script src="{{ url_for(\'static\', filename=\'i18n.js\') }}" defer></script>','')
-    # The speech-to-text tab is optional (needs sherpa-onnx + a 942 MB model),
-    # so this browser test drops its stylesheet and scripts instead of stubbing them.
+    # The speech-to-text tab is optional (needs the llama.cpp runtime + a 1 GB
+    # Qwen3-ASR GGUF), so this browser test drops its stylesheet and scripts
+    # instead of stubbing them.
     s=s.replace('<link rel="stylesheet" href="{{ url_for(\'static\', filename=\'asr.css\') }}">','')
     s=s.replace('<script src="{{ url_for(\'static\', filename=\'phrase.js\') }}" defer></script>','')
     s=s.replace('<script src="{{ url_for(\'static\', filename=\'asr.js\') }}" defer></script>','')

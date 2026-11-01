@@ -40,6 +40,15 @@
   let frameBuffer = [], frameSamples = 0, lastSpeechAt = 0;
   let currentUtteranceHasAudio = false, finalizing = false, micStreamRate = 48000, speechRms = 0;
 
+  // 麦克风健康检查：VRChat 玩家最常踩的坑是系统默认输入设备是头显串流麦，
+  // 头显没开串流时浏览器能拿到 track 却只有纯静音——界面上没有任何提示，
+  // 看起来就像「点了开始没反应」。这里记录本次监听期间的峰值电平，长时间
+  // 为 0 就直接说明原因。
+  const SPEECH_RMS = 0.012;
+  const SILENT_WARN_AFTER_MS = 4000;
+  const SILENT_RMS = 0.002;
+  let peakRms = 0, listenStartedAt = 0, micWarning = "";
+
   let modelReady = false;
   let statusTimer = null;
 
@@ -396,7 +405,8 @@
     } else {
       applyInterim(data.text);
       $("asrMicStatus").lang = detectLang(data.text || "");
-      $("asrMicStatus").textContent = `正在识别… ${data.text || ""}`;
+      // 麦克风静音警告要留住，别被每 900ms 的「正在识别…」冲掉
+      if (!micWarning) $("asrMicStatus").textContent = `正在识别… ${data.text || ""}`;
     }
   }
 
@@ -419,7 +429,7 @@
     if (s.status === "ready") {
       setStatus("模型已就绪", "ok");
       $("asrModelInfo").textContent =
-        `模型已加载（${s.load_seconds}s）· CPU 线程 ${s.threads} · 采样率 ${s.sample_rate} Hz · ${s.model_dir}`;
+        `模型已加载（${s.load_seconds}s）· ${s.backend || "llama.cpp"} · 设备 ${s.device || "auto"} · 采样率 ${s.sample_rate} Hz · ${s.model_dir}`;
       $("asrStatus").title = "模型已就绪";
     } else if (s.status === "loading") {
       setStatus("模型加载中…", "warn");
@@ -611,7 +621,13 @@
       // 开始监听前清掉服务端缓冲，保证第一句从干净状态开始
       await fetch("/api/asr/reset", { method: "POST" }).catch(() => {});
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // 经过若干 await 之后才创建，某些 Chrome 版本会把上下文停在 suspended，
+      // 此时 onaudioprocess 根本不触发（音量条不动、也没有任何报错）。
+      if (audioCtx.state === "suspended") await audioCtx.resume();
       micStreamRate = audioCtx.sampleRate;
+      peakRms = 0;
+      micWarning = "";
+      listenStartedAt = performance.now();
       source = audioCtx.createMediaStreamSource(mediaStream);
       processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processor.onaudioprocess = (e) => {
@@ -620,6 +636,7 @@
         let sum = 0;
         for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
         speechRms = Math.sqrt(sum / input.length);
+        if (speechRms > peakRms) peakRms = speechRms;
         $("asrMeterFill").style.width = Math.min(100, Math.round(speechRms * 600)) + "%";
 
         const down = downsample(input, micStreamRate, TARGET_RATE);
@@ -627,9 +644,19 @@
         frameSamples += down.length;
 
         const now = performance.now();
-        if (speechRms > 0.012) {
+        if (speechRms > SPEECH_RMS) {
           lastSpeechAt = now;
           currentUtteranceHasAudio = true;
+          if (micWarning) {           // 有声音了，撤销静音提示
+            micWarning = "";
+            $("asrMicStatus").textContent = `正在监听 · 输入采样率 ${micStreamRate} Hz。说一句话试试。`;
+          }
+        } else if (!micWarning && now - listenStartedAt > SILENT_WARN_AFTER_MS && peakRms < SILENT_RMS) {
+          // 4 秒内峰值都没超过噪声底：设备能打开但没信号，直接说清楚原因
+          const label = $("asrDevice").selectedOptions[0]?.textContent || "当前麦克风";
+          micWarning = `没有收到任何声音（${label}）。请确认头显麦克风已开启、Windows 没有静音，或在「麦克风」里换一个设备。`;
+          $("asrMicStatus").textContent = micWarning;
+          toast(micWarning, true);
         }
         const target = Math.round(TARGET_RATE * (Number($("asrChunkMs").value) / 1000));
         if (frameSamples >= target) {
@@ -648,7 +675,12 @@
             }
           }
           frameSamples -= target;
-          enqueue(joinFloat32(take, target), false);
+          // 纯静音别发：送进模型会被幻觉成「嗯」，还白占显卡。
+          // 但门槛放得很低（SILENT_RMS），音量偏小的人不会被卡死——
+          // 真正拦掉噪声的是服务端的语音时长判断。
+          if (currentUtteranceHasAudio || speechRms > SILENT_RMS) {
+            enqueue(joinFloat32(take, target), false);
+          }
         }
         if (currentUtteranceHasAudio && !finalizing && now - lastSpeechAt > Number($("asrPauseMs").value)) {
           finalizing = true;
@@ -686,6 +718,8 @@
     frameSamples = 0;
     finalizing = false;
     currentUtteranceHasAudio = false;
+    peakRms = 0;
+    micWarning = "";
     state.utteranceOpen = false;
     state.interim = "";
     syncStartButton();

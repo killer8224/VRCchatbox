@@ -52,7 +52,7 @@ from startup import system_language, serve
 app.register_blueprint(translation)
 config = load_config()
 
-# 本地语音识别（可选功能）：sherpa-onnx 或模型缺失时只影响「语音输入」标签页，
+# 本地语音识别（可选功能）：llama.cpp 运行时或模型缺失时只影响「语音输入」标签页，
 # 不影响发送、历史与短语。注册失败时打印原因并继续启动。
 try:
     from asr import asr_api
