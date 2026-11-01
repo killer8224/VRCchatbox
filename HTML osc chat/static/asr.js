@@ -16,6 +16,7 @@
   const LANG_KEY = "vrc.asr.lang";
 
   const placeholderEl = $("asrPlaceholder");
+  const historyEmptyEl = $("asrHistoryEmpty");
   const app = () => window.VRCApp || {};
 
   /* ---------------------------- 状态 ---------------------------- */
@@ -154,6 +155,53 @@
       freshIds = new Set();
       render();
     }, 900);
+  }
+
+  /* ---------------------------- 发送记录（只读） ---------------------------- */
+
+  let historyItems = [];
+
+  function renderHistory() {
+    const host = $("asrHistory");
+    if (!host) return;
+    // 与「消息发送」页一致：取最近 30 条，最新的在最下面，自动滚到底
+    const rows = historyItems.slice(0, 30).reverse();
+    const frag = document.createDocumentFragment();
+    for (const item of rows) {
+      const row = document.createElement("div");
+      row.className = "chat-bubble-item";
+      const meta = document.createElement("time");
+      meta.className = "bubble-meta";
+      meta.textContent = new Date(item.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const bubble = document.createElement("div");
+      bubble.className = "chat-bubble";
+      bubble.textContent = item.text;
+      row.append(meta, bubble);
+      frag.appendChild(row);
+    }
+    host.replaceChildren(frag);
+    if (!rows.length && historyEmptyEl) host.appendChild(historyEmptyEl);
+    host.scrollTop = host.scrollHeight;
+  }
+
+  function setHistory(items) {
+    historyItems = Array.isArray(items) ? items : [];
+    renderHistory();
+  }
+
+  /* ---------------------------- 监听中的专注布局 ---------------------------- */
+
+  function enterFocus() {
+    document.body.classList.add("asr-focus");
+    // 两个框在专注模式下变高，重排后重新滚到底
+    requestAnimationFrame(() => {
+      const host = $("asrHistory");
+      if (host) host.scrollTop = host.scrollHeight;
+    });
+  }
+
+  function exitFocus() {
+    document.body.classList.remove("asr-focus");
   }
 
   /* ---------------------------- 撤销 ---------------------------- */
@@ -613,6 +661,7 @@
       lastSpeechAt = performance.now();
       syncStartButton();
       $("asrStop").disabled = false;
+      enterFocus();
       $("asrMicStatus").textContent = `正在监听 · 输入采样率 ${micStreamRate} Hz。说一句话试试。`;
       notice("正在监听。选中方块后重新说一遍，可整体替换。");
     } catch (e) {
@@ -642,6 +691,7 @@
     syncStartButton();
     $("asrStop").disabled = true;
     $("asrMeterFill").style.width = "0%";
+    exitFocus();
     if (wasListening) $("asrMicStatus").textContent = "已停止监听。";
     render();
     // 丢弃服务端残留的半句话，避免下次监听时把它接在新句子前面
@@ -846,6 +896,7 @@
     // 进入标签页：首次进入才触发模型加载，避免开机就读 942MB
     resume() {
       refreshMicSupport();
+      if (app().getHistory) setHistory(app().getHistory());
       checkStatus(!modelReady);
     },
     // 离开标签页：释放麦克风，避免浏览器一直显示录音中
@@ -855,10 +906,21 @@
         notice("已离开语音输入标签页，麦克风已停止。");
       }
     },
+    // 主界面每次刷新发送记录都会推过来（只读展示）
+    setHistory,
     isListening: () => listening,
   };
 
+  // 识别提示与控制条同一行，过长会被省略号截断：把全文同步到 title，悬停即可看全
+  const micHintEl = $("asrMicStatus");
+  if (micHintEl && window.MutationObserver) {
+    new MutationObserver(() => { micHintEl.title = micHintEl.textContent; })
+      .observe(micHintEl, { childList: true, characterData: true, subtree: true });
+    micHintEl.title = micHintEl.textContent;
+  }
+
   try {
+    setHistory(app().getHistory ? app().getHistory() : []);
     render();
     updateSelectionUI();
     refreshMicSupport();

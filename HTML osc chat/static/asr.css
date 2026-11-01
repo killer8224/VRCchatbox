@@ -1,54 +1,92 @@
 /* 语音输入标签页（本地 ASR）。
    只使用主界面的设计令牌（--surface/--paper/--line/--text/--sub/--accent），
-   因此浅色与 .dark 深色主题都自动适配。 */
+   因此浅色与 .dark 深色主题都自动适配。
+
+   布局：整页不出现滚动条，也不超过浏览器高度。
+   #view-asr 是 flex 列：控制条与发送记录占固定份额，识别结果吃掉其余全部高度，
+   内容在卡片内部滚动（滚动条隐藏，仍可用滚轮/触控板滚动）。 */
 
 .asr-view{
   --font-ja:"Yu Gothic UI","Meiryo","Yu Gothic","Hiragino Kaku Gothic ProN","Noto Sans JP","Microsoft YaHei",sans-serif;
   --font-zh:"Microsoft YaHei","PingFang SC","Noto Sans SC","Segoe UI",sans-serif;
-  overflow-y:auto;
-  padding:22px 30px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding:18px 24px;
 }
-.asr-scroll{display:flex;flex-direction:column;gap:14px;max-width:900px;width:100%;flex:none}
+.asr-scroll{display:flex;flex-direction:column;gap:12px;width:100%;flex:1;min-height:0}
 
-.asr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
-.asr-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.asr-head-actions .button-small{min-height:28px;padding:5px 10px;font-size:11px}
-.asr-lead{margin:0;font-size:12px;line-height:1.65;color:var(--sub);max-width:640px}
-#asrStatus{flex:none;font-size:11px;padding:6px 11px;border-radius:999px;background:var(--paper2);color:var(--sub);border:1px solid var(--line);white-space:nowrap;overflow-wrap:anywhere;cursor:pointer}
+.asr-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;flex:0 0 auto}
+.asr-head .button-small{min-height:30px;padding:5px 11px;font-size:12px}
+.asr-lead{margin:0;font-size:13px;line-height:1.65;color:var(--sub);max-width:720px}
+#asrStatus{flex:none;font-size:12px;padding:6px 12px;border-radius:999px;background:var(--paper2);color:var(--sub);border:1px solid var(--line);white-space:nowrap;overflow-wrap:anywhere;cursor:pointer}
 #asrStatus.ok{background:var(--soft);color:var(--accent);border-color:transparent}
 #asrStatus.bad{background:#fdeced;color:var(--danger);border-color:transparent}
 #asrStatus.warn{background:#fff5e6;color:#a4661a;border-color:transparent}
 .dark #asrStatus.bad{background:#3a2026;color:#ffb3ba}
 .dark #asrStatus.warn{background:#3a2f1a;color:#f0c98a}
 
-.asr-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+.asr-card{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;display:flex;flex-direction:column;min-height:0;flex:0 0 auto;
+}
+/* 识别结果卡：吃掉所有多余高度 */
+.asr-editor-card{flex:1 1 auto;min-height:0}
+/* 发送记录卡：固定一段高度（随窗口略变），标题竖排在左侧，省下整行标题 */
+.asr-history-card{
+  flex:0 1 clamp(140px,23vh,230px);min-height:104px;
+  flex-direction:row;align-items:stretch;gap:12px;
+}
+.asr-rail{
+  flex:0 0 auto;writing-mode:vertical-rl;text-orientation:upright;
+  font-size:12px;font-weight:750;letter-spacing:3px;color:var(--sub);
+  padding:2px 0;user-select:none;
+}
 
-.asr-controls{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
-.asr-field{display:flex;flex-direction:column;gap:6px;min-width:200px;flex:1 1 220px}
-.asr-field span{font-size:10px;font-weight:750;letter-spacing:.6px;color:var(--sub);text-transform:uppercase}
-.asr-field select{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--text);padding:0 9px;font-size:12px}
-.asr-buttons{display:flex;gap:8px;flex-wrap:wrap}
-.asr-buttons .button{flex:0 0 auto;min-width:88px}
+/* 控制条：模型状态、设备、按钮、电平、识别提示全部挤在同一行 */
+.asr-control-card{padding:11px 16px}
+.asr-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.asr-field{display:flex;align-items:center;gap:8px;flex:0 1 250px;min-width:160px}
+.asr-field span{flex:none;font-size:11px;font-weight:750;letter-spacing:.6px;color:var(--sub)}
+.asr-field select{flex:1 1 auto;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--text);padding:0 10px;font-size:13px}
+.asr-buttons{display:flex;gap:8px;flex-wrap:wrap;flex:0 0 auto}
+.asr-buttons .button{flex:0 0 auto;min-width:92px;font-size:13px}
+.asr-live{display:flex;align-items:center;gap:10px;flex:1 1 220px;min-width:0}
 
-.asr-meter{height:7px;border-radius:8px;background:var(--paper2);overflow:hidden;margin-top:13px;border:1px solid var(--line)}
+.asr-meter{flex:0 0 104px;height:7px;border-radius:8px;background:var(--paper2);overflow:hidden;border:1px solid var(--line)}
 .asr-meter>div{height:100%;width:0;background:var(--accent);transition:width .08s linear}
 
-.asr-hint{margin:9px 0 0;font-size:11px;line-height:1.6;color:var(--sub)}
+.asr-hint{margin:8px 0 0;font-size:12.5px;line-height:1.6;color:var(--sub);flex:0 0 auto}
+/* 识别提示与控制条同行：单行显示，过长省略，悬停看全文（由脚本同步 title） */
+#asrMicStatus{margin:0;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.asr-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-.asr-editor-head label{font-size:11px;font-weight:750;letter-spacing:.5px;color:var(--sub);text-transform:uppercase}
-#asrCount{font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums}
+.asr-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;flex:0 0 auto}
+.asr-editor-head label{font-size:12px;font-weight:750;letter-spacing:.5px;color:var(--sub);text-transform:uppercase}
+#asrCount{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
 #asrCount.over{color:var(--danger);font-weight:750}
 
-.asr-blocks{
-  min-height:172px;background:var(--paper);border:1px solid var(--line);border-radius:12px;
-  padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;
+/* 两个内容框：占满卡片剩余高度，内部滚动但不显示滚动条 */
+.asr-blocks,
+.asr-history{
+  flex:1 1 auto;min-height:84px;overflow-y:auto;
+  background:var(--paper);border:1px solid var(--line);border-radius:12px;
+  padding:12px;
+  scrollbar-width:none;-ms-overflow-style:none;
 }
-.asr-placeholder{margin:0;font-size:12px;line-height:1.75;color:var(--sub)}
+.asr-blocks::-webkit-scrollbar,
+.asr-history::-webkit-scrollbar{width:0;height:0}
+
+.asr-blocks{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
+/* 发送记录：只读，视觉与「消息发送」页的气泡一致 */
+.asr-history{display:flex;flex-direction:column;gap:8px;justify-content:flex-start;min-width:0}
+.asr-history .chat-bubble{max-width:min(80%,560px);font-size:13.5px;padding:10px 13px}
+.asr-history .bubble-meta{font-size:11px}
+.asr-placeholder{margin:0;font-size:13px;line-height:1.75;color:var(--sub)}
+
 .asr-block{
-  display:inline-block;padding:6px 10px;border-radius:9px;
+  display:inline-block;padding:6px 11px;border-radius:9px;
   background:var(--surface);border:1px solid var(--line);color:var(--text);
-  font-size:17px;line-height:1.35;letter-spacing:.01em;
+  font-size:18px;line-height:1.35;letter-spacing:.01em;
   cursor:pointer;user-select:none;white-space:pre-wrap;
   transition:background .12s,border-color .12s,box-shadow .12s,transform .08s;
 }
@@ -68,44 +106,74 @@
 
 .asr-selection{
   display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-  margin-top:10px;padding:8px 12px;border-radius:10px;
-  background:var(--soft);border:1px solid var(--accent);color:var(--text);font-size:11px;line-height:1.5;
+  margin-top:9px;padding:8px 12px;border-radius:10px;
+  background:var(--soft);border:1px solid var(--accent);color:var(--text);
+  font-size:12px;line-height:1.5;flex:0 0 auto;
 }
 
 /* 操作栏：右侧「发送」跨 2 行，其余 4 键均分 2×2 */
 .asr-actions{
-  display:grid;gap:8px;margin-top:11px;
-  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(88px,26%);
+  display:grid;gap:8px;margin-top:10px;flex:0 0 auto;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(96px,24%);
   grid-template-rows:repeat(2,minmax(42px,auto));
 }
-.asr-actions .button{flex:none;width:100%;min-height:42px}
+.asr-actions .button{flex:none;width:100%;min-height:42px;font-size:13px}
 #asrUndo{grid-area:1/1/2/2}
 #asrDelSel{grid-area:1/2/2/3}
 #asrClear{grid-area:2/1/3/2}
 #asrSave{grid-area:2/2/3/3}
 .asr-send{
   grid-area:1/3/3/4;
-  font-size:14px;font-weight:800;letter-spacing:.4px;
+  font-size:15px;font-weight:800;letter-spacing:.4px;
   flex-direction:column;gap:2px;
 }
 
-.asr-settings{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 16px}
-.asr-settings summary{cursor:pointer;font-size:12px;font-weight:750;color:var(--text)}
-.asr-settings label{display:block;font-size:11px;font-weight:700;color:var(--sub);margin:12px 0 6px}
-.asr-settings select{width:100%;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--text);padding:0 9px;font-size:12px}
+.asr-settings{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:12px 16px;flex:0 0 auto;
+}
+.asr-settings summary{cursor:pointer;font-size:13px;font-weight:750;color:var(--text)}
+.asr-settings label{display:block;font-size:12px;font-weight:700;color:var(--sub);margin:11px 0 6px}
+.asr-settings select{width:100%;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--text);padding:0 10px;font-size:13px}
+
+/* ---------- 监听中的专注布局 ----------
+   开始监听后：隐藏麦克风设备、性能设置与左侧边栏，把整页宽度和高度
+   全部让给「发送记录」和「识别结果」两个框（停止监听即恢复）。 */
+body.asr-focus .app{grid-template-columns:minmax(0,1fr);max-width:none}
+body.asr-focus .sidebar{display:none}
+body.asr-focus .asr-view{padding:14px 20px}
+body.asr-focus .asr-scroll{max-width:none}
+/* 说明行整块收起（此时麦克风已授权，不需要「在新窗口打开」） */
+body.asr-focus .asr-head{display:none}
+body.asr-focus #asrDeviceField{display:none}
+body.asr-focus #asrSettings{display:none!important}
 
 @media(max-width:880px){
-  .asr-view{padding:18px 18px}
+  .asr-view{padding:16px 16px}
+  body.asr-focus .asr-view{padding:12px 14px}
+  /* 窄屏放不下一行时，识别提示换到第二行 */
+  .asr-live{flex:1 1 100%}
 }
 @media(max-width:680px){
-  .asr-view{padding:14px 13px calc(14px + env(safe-area-inset-bottom,0px))}
-  .asr-card{padding:12px 12px;border-radius:12px}
-  .asr-controls{gap:10px}
+  .asr-view{padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px))}
+  .asr-card{padding:11px 12px;border-radius:12px}
+  .asr-control-card{padding:10px 12px}
+  .asr-bar{gap:9px}
   .asr-field{flex:1 1 100%}
+  .asr-buttons{flex:1 1 100%}
   .asr-buttons .button{flex:1 1 0;min-width:0}
-  .asr-block{font-size:16px}
-  .asr-actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(74px,24%)}
-  .asr-actions .button{min-height:40px;padding:8px 6px;font-size:11px}
-  .asr-send{font-size:12px}
-  .asr-lead{font-size:11px}
+  .asr-meter{flex:0 0 76px}
+  .asr-block{font-size:17px}
+  .asr-actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(80px,26%)}
+  .asr-actions .button{min-height:40px;padding:8px 6px;font-size:12px}
+  .asr-send{font-size:13px}
+  .asr-lead{font-size:12px}
+  .asr-history .chat-bubble{font-size:13px}
+}
+/* 矮窗口（<640px）才允许整页滚动，保证按钮不会被裁掉 */
+@media(max-height:640px){
+  .asr-view{overflow-y:auto}
+  .asr-lead{display:none}
+  .asr-history-card{flex:0 0 auto;min-height:130px}
+  .asr-editor-card{flex:0 0 auto;min-height:230px}
 }

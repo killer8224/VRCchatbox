@@ -83,15 +83,13 @@
         <div class="asr-scroll">
           <div class="asr-head">
             <p class="asr-lead">本机识别，音频不上传云端。结果按短语切成方块，点选后可删除或重新说一遍整体替换；确认无误再点右侧「发送」交给 OSC。</p>
-            <div class="asr-head-actions">
-              <span id="asrStatus" class="pill">正在检查模型…</span>
-              <button id="asrPopout" class="button button-outline button-small" type="button" hidden>在新窗口打开</button>
-            </div>
+            <button id="asrPopout" class="button button-outline button-small" type="button" hidden>在新窗口打开</button>
           </div>
 
-          <section class="asr-card">
-            <div class="asr-controls">
-              <label class="asr-field" for="asrDevice"><span>麦克风设备</span>
+          <section class="asr-card asr-control-card">
+            <div class="asr-bar">
+              <span id="asrStatus" class="pill">正在检查模型…</span>
+              <label class="asr-field" id="asrDeviceField" for="asrDevice"><span>麦克风</span>
                 <select id="asrDevice"><option value="">系统默认麦克风</option></select>
               </label>
               <div class="asr-buttons">
@@ -99,12 +97,21 @@
                 <button id="asrStop" class="button button-outline" type="button" disabled>停止</button>
                 <button id="asrCopy" class="button button-outline" type="button">复制草稿</button>
               </div>
+              <div class="asr-live">
+                <div class="asr-meter"><div id="asrMeterFill"></div></div>
+                <p id="asrMicStatus" class="asr-hint">点击「开始监听」并允许浏览器访问麦克风。</p>
+              </div>
             </div>
-            <div class="asr-meter"><div id="asrMeterFill"></div></div>
-            <p id="asrMicStatus" class="asr-hint">点击「开始监听」后选择麦克风，并允许浏览器访问。手机通过局域网地址访问时浏览器会禁止录音，请在本机用 127.0.0.1 打开。</p>
           </section>
 
-          <section class="asr-card">
+          <section class="asr-card asr-history-card">
+            <span class="asr-rail">发送记录</span>
+            <div id="asrHistory" class="asr-history" role="log" aria-label="发送记录">
+              <p id="asrHistoryEmpty" class="asr-placeholder">暂时没有发送记录。这里只显示已发送的内容，不提供编辑或重发。</p>
+            </div>
+          </section>
+
+          <section class="asr-card asr-editor-card">
             <div class="asr-editor-head">
               <label>识别结果 · 点击方块编辑</label>
               <span id="asrCount">0 / 144</span>
@@ -126,7 +133,7 @@
             <p id="asrNotice" class="asr-hint">选中方块后重新说一遍即可整体替换；替换完成后自动回到普通追加输入状态。</p>
           </section>
 
-          <details class="asr-settings">
+          <details class="asr-settings" id="asrSettings">
             <summary>性能与识别设置</summary>
             <p id="asrModelInfo" class="asr-hint">读取中…</p>
             <label for="asrLang">识别语种（留「自动」即可：说什么识别成什么）</label>

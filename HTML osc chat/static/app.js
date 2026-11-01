@@ -263,6 +263,8 @@
     });
     $('historyCount').textContent = history.length;
     $('conversation').scrollTop = $('conversation').scrollHeight;
+    // 语音输入页的「发送记录」只读面板跟随同一份数据
+    if (window.VRCASR && window.VRCASR.setHistory) window.VRCASR.setHistory(history);
   }
   function actionButton(title, callback) {
     const b = document.createElement('button');
@@ -572,7 +574,8 @@
     // Public bridge for the optional speech-to-text tab (static/asr.js).
     window.VRCApp = {
       sendFromDraft, saveQuickPhrase, showToast, switchView,
-      t, upstream, maxChars: CHAT_MAX_CHARS, maxLines: CHAT_MAX_LINES
+      t, upstream, maxChars: CHAT_MAX_CHARS, maxLines: CHAT_MAX_LINES,
+      getHistory: () => history
     };
   }
   boot();
