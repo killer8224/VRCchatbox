@@ -80,14 +80,14 @@
 .asr-blocks{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
 /* 发送记录：只读，视觉与「消息发送」页的气泡一致 */
 .asr-history{display:flex;flex-direction:column;gap:8px;justify-content:flex-start;min-width:0}
-.asr-history .chat-bubble{max-width:min(80%,560px);font-size:13.5px;padding:10px 13px}
-.asr-history .bubble-meta{font-size:11px}
+.asr-history .chat-bubble{max-width:min(80%,560px);font-size:27px;padding:10px 13px}
+.asr-history .bubble-meta{font-size:22px}
 .asr-placeholder{margin:0;font-size:13px;line-height:1.75;color:var(--sub)}
 
 .asr-block{
   display:inline-block;padding:6px 11px;border-radius:9px;
   background:var(--surface);border:1px solid var(--line);color:var(--text);
-  font-size:18px;line-height:1.35;letter-spacing:.01em;
+  font-size:42px;line-height:1.35;letter-spacing:.01em;
   cursor:pointer;user-select:none;white-space:pre-wrap;
   transition:background .12s,border-color .12s,box-shadow .12s,transform .08s;
 }
@@ -120,15 +120,15 @@
   grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(96px,24%);
   grid-template-rows:repeat(2,minmax(42px,auto));
 }
-.asr-actions .button{flex:none;width:100%;min-height:42px;font-size:13px}
+.asr-actions .button{flex:none;width:100%;min-height:42px;font-size:26px;padding:2px}
 #asrUndo{grid-area:1/1/2/2}
 #asrDelSel{grid-area:1/2/2/3}
 #asrClear{grid-area:2/1/3/2}
 #asrSave{grid-area:2/2/3/3}
 .asr-send{
   grid-area:1/3/3/4;
-  font-size:15px;font-weight:800;letter-spacing:.4px;
-  flex-direction:column;gap:2px;
+  font-size:30px;font-weight:800;letter-spacing:.4px;
+  flex-direction:column;gap:2px;padding:2px;
 }
 
 .asr-settings{
@@ -140,16 +140,19 @@
 .asr-settings select{width:100%;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--text);padding:0 10px;font-size:13px}
 
 /* ---------- 监听中的专注布局 ----------
-   开始监听后：隐藏麦克风设备、性能设置与左侧边栏，把整页宽度和高度
-   全部让给「发送记录」和「识别结果」两个框（停止监听即恢复）。 */
+   开始监听后：隐藏左侧边栏、上边栏、麦克风设备、性能设置，
+   把省下来的高度让给「发送记录」和「识别结果」两个框（停止监听即恢复）。 */
 body.asr-focus .app{grid-template-columns:minmax(0,1fr);max-width:none}
 body.asr-focus .sidebar{display:none}
+body.asr-focus .topbar{display:none}
 body.asr-focus .asr-view{padding:14px 20px}
 body.asr-focus .asr-scroll{max-width:none}
 /* 说明行整块收起（此时麦克风已授权，不需要「在新窗口打开」） */
 body.asr-focus .asr-head{display:none}
 body.asr-focus #asrDeviceField{display:none}
 body.asr-focus #asrSettings{display:none!important}
+/* 上边栏隐藏后省出的高度加给发送记录 */
+body.asr-focus .asr-history-card{flex:0 1 clamp(200px,34vh,340px)}
 
 @media(max-width:880px){
   .asr-view{padding:16px 16px}
@@ -166,12 +169,12 @@ body.asr-focus #asrSettings{display:none!important}
   .asr-buttons{flex:1 1 100%}
   .asr-buttons .button{flex:1 1 0;min-width:0}
   .asr-meter{flex:0 0 76px}
-  .asr-block{font-size:17px}
+  .asr-block{font-size:40px}
   .asr-actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(80px,26%)}
-  .asr-actions .button{min-height:40px;padding:8px 6px;font-size:12px}
-  .asr-send{font-size:13px}
+  .asr-actions .button{min-height:40px;padding:2px;font-size:24px}
+  .asr-send{font-size:26px;padding:2px}
   .asr-lead{font-size:12px}
-  .asr-history .chat-bubble{font-size:13px}
+  .asr-history .chat-bubble{font-size:26px}
 }
 /* 矮窗口（<640px）才允许整页滚动，保证按钮不会被裁掉 */
 @media(max-height:640px){
